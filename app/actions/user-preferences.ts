@@ -12,6 +12,7 @@ import {
   updateUserLogin,
   getUserStats,
 } from "@/lib/database"
+import { initializeUserCredits, getUserCredits, hasCredits, deductCredits } from "@/lib/credits"
 import { headers } from "next/headers"
 
 export interface UserPreferences {
@@ -40,6 +41,9 @@ export async function saveUserPreferences(preferences: UserPreferences) {
         image: session.user.image || undefined,
         google_id: session.user.id || undefined,
       })
+
+      // Initialize credits for new user
+      await initializeUserCredits(user.id)
     }
 
     await createOrUpdateUserPreferences(user.id, {
@@ -86,6 +90,69 @@ export async function getUserPreferencesAction(): Promise<UserPreferences | null
   }
 }
 
+export async function getUserCreditsAction(): Promise<{ credits: number; error?: string }> {
+  const session = await getServerSession(authOptions)
+
+  if (!session?.user?.email) {
+    return { credits: 0, error: "Not authenticated" }
+  }
+
+  try {
+    // Get or create user
+    let user = await getUserByEmail(session.user.email)
+    if (!user) {
+      user = await createUser({
+        email: session.user.email,
+        name: session.user.name || undefined,
+        image: session.user.image || undefined,
+        google_id: session.user.id || undefined,
+      })
+
+      // Initialize credits for new user
+      await initializeUserCredits(user.id)
+      return { credits: 10 }
+    }
+
+    const userCredits = await getUserCredits(user.id)
+    if (!userCredits) {
+      // Initialize credits if they don't exist
+      await initializeUserCredits(user.id)
+      return { credits: 10 }
+    }
+
+    return { credits: userCredits.balance }
+  } catch (error) {
+    console.error("Error getting user credits:", error)
+    return { credits: 0, error: "Failed to get credits" }
+  }
+}
+
+export async function checkUserCredits(): Promise<{ hasCredits: boolean; credits: number; error?: string }> {
+  const session = await getServerSession(authOptions)
+
+  if (!session?.user?.email) {
+    return { hasCredits: false, credits: 0, error: "Not authenticated" }
+  }
+
+  try {
+    const user = await getUserByEmail(session.user.email)
+    if (!user) {
+      return { hasCredits: false, credits: 0, error: "User not found" }
+    }
+
+    const userCredits = await getUserCredits(user.id)
+    const credits = userCredits?.balance || 0
+
+    return {
+      hasCredits: credits > 0,
+      credits,
+    }
+  } catch (error) {
+    console.error("Error checking user credits:", error)
+    return { hasCredits: false, credits: 0, error: "Failed to check credits" }
+  }
+}
+
 export async function savePromptToHistory(
   promptText: string,
   category: string,
@@ -113,6 +180,21 @@ export async function savePromptToHistory(
         image: session.user.image || undefined,
         google_id: session.user.id || undefined,
       })
+
+      // Initialize credits for new user
+      await initializeUserCredits(user.id)
+    }
+
+    // Check if user has credits
+    const hasUserCredits = await hasCredits(user.id, 1)
+    if (!hasUserCredits) {
+      return { success: false, error: "Insufficient credits" }
+    }
+
+    // Deduct credit for prompt generation
+    const creditResult = await deductCredits(user.id, 1, `Prompt generation - ${category}`)
+    if (!creditResult.success) {
+      return { success: false, error: creditResult.error || "Failed to deduct credits" }
     }
 
     // Update login info
@@ -131,7 +213,10 @@ export async function savePromptToHistory(
       personal_interests: promptRequest.personalInterests,
     })
 
-    return { success: true }
+    return {
+      success: true,
+      newCredits: creditResult.newBalance,
+    }
   } catch (error) {
     console.error("Error saving prompt to history:", error)
     return { success: false, error: "Failed to save prompt" }

@@ -9,16 +9,18 @@ import { Textarea } from "@/components/ui/textarea"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Sparkles, Copy, RefreshCw, Heart, TrendingUp, Zap, User, Clock, Settings } from "lucide-react"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Sparkles, Copy, RefreshCw, Heart, TrendingUp, Zap, User, Clock, Settings, AlertCircle } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { generateAIPrompt, type PromptRequest } from "./actions/generate-prompt"
 import { useSession } from "next-auth/react"
 import { Header } from "@/components/header"
+import { CreditDisplay } from "@/components/credit-display"
 import {
   saveUserPreferences,
   getUserPreferencesAction as getUserPreferences,
-  savePromptToHistory,
   getUserPromptHistory,
+  getUserCreditsAction,
 } from "./actions/user-preferences"
 
 const categories = [
@@ -86,6 +88,7 @@ export default function Component() {
   const [currentPrompt, setCurrentPrompt] = useState("")
   const [isGenerating, setIsGenerating] = useState(false)
   const [promptHistory, setPromptHistory] = useState<string[]>([])
+  const [userCredits, setUserCredits] = useState(0)
   const { toast } = useToast()
 
   const loadUserPreferences = async () => {
@@ -103,6 +106,11 @@ export default function Component() {
   const loadUserHistory = async () => {
     const history = await getUserPromptHistory()
     setPromptHistory(history)
+  }
+
+  const loadUserCredits = async () => {
+    const result = await getUserCreditsAction()
+    setUserCredits(result.credits)
   }
 
   const savePreferences = async () => {
@@ -124,6 +132,15 @@ export default function Component() {
   }
 
   const generatePrompt = async () => {
+    if (userCredits === 0) {
+      toast({
+        title: "No credits remaining",
+        description: "You need credits to generate prompts. Please purchase more credits.",
+        variant: "destructive",
+      })
+      return
+    }
+
     setIsGenerating(true)
 
     try {
@@ -142,14 +159,14 @@ export default function Component() {
         setCurrentPrompt(result.prompt)
         setPromptHistory((prev) => [result.prompt, ...prev.slice(0, 4)])
 
-        // Save to user's history if logged in
-        if (session) {
-          await savePromptToHistory(result.prompt)
+        // Update credits
+        if (result.newCredits !== undefined) {
+          setUserCredits(result.newCredits)
         }
 
         toast({
           title: "✨ New prompt generated!",
-          description: "Your personalized video idea is ready",
+          description: `Your personalized video idea is ready. ${result.newCredits !== undefined ? `Credits remaining: ${result.newCredits}` : ""}`,
         })
       } else {
         toast({
@@ -192,6 +209,7 @@ export default function Component() {
     if (session) {
       loadUserPreferences()
       loadUserHistory()
+      loadUserCredits()
     }
   }, [session])
 
@@ -219,6 +237,13 @@ export default function Component() {
           </p>
         </div>
 
+        {/* Credit Display */}
+        {session && (
+          <div className="mb-6">
+            <CreditDisplay credits={userCredits} onCreditsUpdate={setUserCredits} />
+          </div>
+        )}
+
         <div className="grid lg:grid-cols-3 gap-6 md:gap-8">
           {/* Main Generator */}
           <div className="lg:col-span-2">
@@ -233,6 +258,20 @@ export default function Component() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="pt-0">
+                {/* Low Credits Warning */}
+                {session && userCredits <= 3 && (
+                  <Alert
+                    className={`mb-6 ${userCredits === 0 ? "border-red-200 bg-red-50" : "border-orange-200 bg-orange-50"}`}
+                  >
+                    <AlertCircle className={`h-4 w-4 ${userCredits === 0 ? "text-red-600" : "text-orange-600"}`} />
+                    <AlertDescription className={userCredits === 0 ? "text-red-700" : "text-orange-700"}>
+                      {userCredits === 0
+                        ? "You have no credits remaining. Purchase more credits to continue generating prompts."
+                        : `You have ${userCredits} credit${userCredits === 1 ? "" : "s"} remaining. Consider purchasing more credits soon.`}
+                    </AlertDescription>
+                  </Alert>
+                )}
+
                 <Tabs defaultValue="basic" className="space-y-4 md:space-y-6">
                   <TabsList className="grid w-full grid-cols-2 h-9 md:h-10">
                     <TabsTrigger value="basic" className="text-xs md:text-sm">
@@ -359,18 +398,23 @@ export default function Component() {
 
                 <Button
                   onClick={generatePrompt}
-                  className="w-full bg-gradient-to-r from-purple-500 to-red-500 hover:from-purple-600 hover:to-red-600 text-white py-4 md:py-6 text-base md:text-lg font-semibold mt-6 h-12 md:h-auto"
-                  disabled={isGenerating}
+                  className="w-full bg-gradient-to-r from-purple-500 to-red-500 hover:from-purple-600 hover:to-red-600 text-white py-4 md:py-6 text-base md:text-lg font-semibold mt-6 h-12 md:h-auto disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={isGenerating || (session && userCredits === 0)}
                 >
                   {isGenerating ? (
                     <>
                       <RefreshCw className="w-4 h-4 md:w-5 md:h-5 mr-2 animate-spin" />
                       AI is thinking...
                     </>
+                  ) : session && userCredits === 0 ? (
+                    <>
+                      <AlertCircle className="w-4 h-4 md:w-5 md:h-5 mr-2" />
+                      No Credits Available
+                    </>
                   ) : (
                     <>
                       <Sparkles className="w-4 h-4 md:w-5 md:h-5 mr-2" />
-                      Generate AI Prompt
+                      Generate AI Prompt {session && `(${userCredits} credits)`}
                     </>
                   )}
                 </Button>
@@ -391,7 +435,12 @@ export default function Component() {
                         <Copy className="w-4 h-4 mr-2" />
                         Copy Prompt
                       </Button>
-                      <Button onClick={generatePrompt} variant="outline" className="flex-1 h-10 md:h-11">
+                      <Button
+                        onClick={generatePrompt}
+                        variant="outline"
+                        className="flex-1 h-10 md:h-11"
+                        disabled={session && userCredits === 0}
+                      >
                         <RefreshCw className="w-4 h-4 mr-2" />
                         Generate New
                       </Button>

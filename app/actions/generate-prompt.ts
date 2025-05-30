@@ -2,7 +2,7 @@
 
 import { generateText } from "ai"
 import { openai } from "@ai-sdk/openai"
-import { savePromptToHistory } from "./user-preferences"
+import { savePromptToHistory, checkUserCredits } from "./user-preferences"
 
 export interface PromptRequest {
   category: string
@@ -15,6 +15,19 @@ export interface PromptRequest {
 
 export async function generateAIPrompt(request: PromptRequest) {
   try {
+    // Check if user has credits before generating
+    const creditCheck = await checkUserCredits()
+    if (!creditCheck.hasCredits) {
+      return {
+        success: false,
+        error:
+          creditCheck.credits === 0
+            ? "You have no credits remaining. Please purchase more credits to continue generating prompts."
+            : creditCheck.error || "Unable to verify credits",
+        credits: creditCheck.credits,
+      }
+    }
+
     const systemPrompt = `You are a creative YouTube Shorts content strategist. Generate engaging, viral-worthy video prompts that are:
 - Specific and actionable
 - Optimized for 15-60 second videos
@@ -45,21 +58,27 @@ Make it unique, engaging, and include specific filming instructions. The prompt 
 
     const promptText = text.trim()
 
-    // Save to database if user is authenticated
-    try {
-      await savePromptToHistory(promptText, request.category, {
-        channelType: request.channelType,
-        audienceAge: request.audienceAge,
-        contentStyle: request.contentStyle,
-        duration: request.duration,
-        personalInterests: request.personalInterests,
-      })
-    } catch (error) {
-      // Don't fail the prompt generation if saving fails
-      console.error("Failed to save prompt to database:", error)
+    // Save to database and deduct credit
+    const saveResult = await savePromptToHistory(promptText, request.category, {
+      channelType: request.channelType,
+      audienceAge: request.audienceAge,
+      contentStyle: request.contentStyle,
+      duration: request.duration,
+      personalInterests: request.personalInterests,
+    })
+
+    if (!saveResult.success) {
+      return {
+        success: false,
+        error: saveResult.error || "Failed to save prompt",
+      }
     }
 
-    return { success: true, prompt: promptText }
+    return {
+      success: true,
+      prompt: promptText,
+      newCredits: saveResult.newCredits,
+    }
   } catch (error) {
     console.error("Error generating AI prompt:", error)
     return {
