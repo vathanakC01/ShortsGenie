@@ -11,7 +11,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { User, LogOut, Settings, History } from "lucide-react"
+import { User, LogOut, Settings, History, Sparkles } from "lucide-react"
 
 export function UserProfile() {
   const { data: session } = useSession()
@@ -23,38 +23,44 @@ export function UserProfile() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="relative h-10 w-10 rounded-full">
-          <Avatar className="h-10 w-10">
+        <Button variant="ghost" className="relative h-8 w-8 md:h-10 md:w-10 rounded-full p-0">
+          <Avatar className="h-8 w-8 md:h-10 md:w-10">
             <AvatarImage src={session.user.image || ""} alt={session.user.name || ""} />
-            <AvatarFallback>{session.user.name?.charAt(0) || session.user.email?.charAt(0) || "U"}</AvatarFallback>
+            <AvatarFallback className="text-xs md:text-sm">
+              {session.user.name?.charAt(0) || session.user.email?.charAt(0) || "U"}
+            </AvatarFallback>
           </Avatar>
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent className="w-56" align="end" forceMount>
-        <DropdownMenuLabel className="font-normal">
+      <DropdownMenuContent className="w-56 md:w-64" align="end" forceMount>
+        <DropdownMenuLabel className="font-normal p-3 md:p-4">
           <div className="flex flex-col space-y-1">
-            <p className="text-sm font-medium leading-none">{session.user.name}</p>
-            <p className="text-xs leading-none text-muted-foreground">{session.user.email}</p>
+            <p className="text-sm font-medium leading-none truncate">{session.user.name}</p>
+            <p className="text-xs leading-none text-muted-foreground truncate">{session.user.email}</p>
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        {/*<DropdownMenuItem>
-          <User className="mr-2 h-4 w-4" />
+        <DropdownMenuItem className="h-10 md:h-12">
+          <User className="mr-3 h-4 w-4" />
           <span>Profile</span>
         </DropdownMenuItem>
-        <DropdownMenuItem>
-          <Settings className="mr-2 h-4 w-4" />
+        <DropdownMenuItem className="h-10 md:h-12">
+          <Settings className="mr-3 h-4 w-4" />
           <span>Settings</span>
         </DropdownMenuItem>
-        <DropdownMenuItem>
-          <History className="mr-2 h-4 w-4" />
+        <DropdownMenuItem className="h-10 md:h-12">
+          <History className="mr-3 h-4 w-4" />
           <span>Prompt History</span>
         </DropdownMenuItem>
+        <DropdownMenuItem className="h-10 md:h-12">
+          <Sparkles className="mr-3 h-4 w-4" />
+          <span>Saved Preferences</span>
+        </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={() => signOut()}>
-          <LogOut className="mr-2 h-4 w-4" />
+        <DropdownMenuItem onClick={() => signOut()} className="h-10 md:h-12 text-red-600 focus:text-red-600">
+          <LogOut className="mr-3 h-4 w-4" />
           <span>Log out</span>
-        </DropdownMenuItem>*/}
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   )
