@@ -203,14 +203,14 @@ export function CreditDisplay({ credits, onCreditsUpdate }: CreditDisplayProps) 
               </DialogContent>
             </Dialog>
 
-            <Button
+            {/*<Button
               size="sm"
               className="bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600"
               disabled
             >
               <Plus className="w-4 h-4 mr-1" />
               Buy Credits
-            </Button>
+            </Button>*/}
           </div>
         </div>
       </CardContent>
