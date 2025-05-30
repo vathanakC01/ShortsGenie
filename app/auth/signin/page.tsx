@@ -3,8 +3,9 @@
 import { signIn, getProviders } from "next-auth/react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Youtube, Chrome } from "lucide-react"
+import { Youtube } from "lucide-react"
 import { useEffect, useState } from "react"
+import { GoogleLogo } from "@/components/icons/google-logo"
 
 export default function SignIn() {
   const [providers, setProviders] = useState<any>(null)
@@ -37,10 +38,10 @@ export default function SignIn() {
               <Button
                 key={provider.name}
                 onClick={() => signIn(provider.id, { callbackUrl: "/" })}
-                className="w-full bg-white hover:bg-gray-50 text-gray-900 border border-gray-300 py-6"
+                className="w-full bg-white hover:bg-gray-50 text-gray-900 border border-gray-300 py-6 font-medium"
                 variant="outline"
               >
-                <Chrome className="w-5 h-5 mr-3" />
+                <GoogleLogo className="w-5 h-5 mr-3" />
                 Continue with {provider.name}
               </Button>
             ))}
