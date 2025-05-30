@@ -2,6 +2,7 @@
 
 import { generateText } from "ai"
 import { openai } from "@ai-sdk/openai"
+import { savePromptToHistory } from "./user-preferences"
 
 export interface PromptRequest {
   category: string
@@ -42,7 +43,23 @@ Make it unique, engaging, and include specific filming instructions. The prompt 
       temperature: 0.8,
     })
 
-    return { success: true, prompt: text.trim() }
+    const promptText = text.trim()
+
+    // Save to database if user is authenticated
+    try {
+      await savePromptToHistory(promptText, request.category, {
+        channelType: request.channelType,
+        audienceAge: request.audienceAge,
+        contentStyle: request.contentStyle,
+        duration: request.duration,
+        personalInterests: request.personalInterests,
+      })
+    } catch (error) {
+      // Don't fail the prompt generation if saving fails
+      console.error("Failed to save prompt to database:", error)
+    }
+
+    return { success: true, prompt: promptText }
   } catch (error) {
     console.error("Error generating AI prompt:", error)
     return {

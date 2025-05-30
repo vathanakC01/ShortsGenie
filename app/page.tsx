@@ -16,7 +16,7 @@ import { useSession } from "next-auth/react"
 import { Header } from "@/components/header"
 import {
   saveUserPreferences,
-  getUserPreferences,
+  getUserPreferencesAction as getUserPreferences,
   savePromptToHistory,
   getUserPromptHistory,
 } from "./actions/user-preferences"
